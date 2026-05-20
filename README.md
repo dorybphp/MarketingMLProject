@@ -46,7 +46,7 @@ To rebuild the cross-platform environment exactly as it was compiled during plan
 
 ```bash
 conda env create -f environment.yml
-conda activate marketing_env
+conda activate base
 ```
 
 **Option B: Restore via Pip Standard Environment**
