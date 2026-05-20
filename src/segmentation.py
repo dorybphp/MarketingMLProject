@@ -13,23 +13,23 @@ from utils import load_and_clean_data
 def run_segmentation_pipeline():
     print('EXECUTING SEGMENTATION PIPELINE')
     
-    # data preprocessing and engineering
+    # Data preprocessing and engineering
     print("Preprocessing Data...")
     df_clean = load_and_clean_data()
 
-    # separate metadata from features
+    # Separate metadata from features
     X_raw = df_clean.drop(['label', 'weight', 'year'], axis=1).copy()
     w_km = df_clean['weight'].values
 
-    # isolate continuous numerical features for scaling
+    # Isolate continuous numerical features for scaling
     numeric_features = [
         'age', 'wage per hour', 'capital gains', 'capital losses', 'dividends from stocks',
         'num persons worked for employer', 'weeks worked in year'
     ]
-    # remaining treated as categorical column for one-hot encoding
+    # Remaining treated as categorical column for one-hot encoding
     categorical_features = [col for col in X_raw.columns if col not in numeric_features]
 
-    # construct parallel processing pipeline
+    # Construct parallel processing pipeline
     preprocessor = ColumnTransformer(
         transformers=[
             ('num', Pipeline([
@@ -48,7 +48,7 @@ def run_segmentation_pipeline():
     os.makedirs('outputs', exist_ok=True)
     
     
-    # find optimal number of clusters
+    # Find optimal number of clusters
     print('Finding Optimal Number of Clusters...')
     # 10% representative sample to compute elbow curve efficiently
     sample_size = int(len(X_scaled_km) * 0.10)
@@ -58,7 +58,7 @@ def run_segmentation_pipeline():
     X_sample = X_scaled_km[sample_indices]
     w_sample = w_km[sample_indices]
 
-    # run elbow loop
+    # Run elbow loop
     inertia_scores = []
     k_range = range(1, 15)
 
@@ -67,7 +67,7 @@ def run_segmentation_pipeline():
         kmeans_test.fit(X_sample, sample_weight=w_sample)
         inertia_scores.append(kmeans_test.inertia_)
     
-    # elbow curve
+    # Plot elbow curve
     plt.figure(figsize=(8, 6))
     plt.plot(k_range, inertia_scores, marker='o', linestyle='-', color='blue')
     plt.title('K-Means Elbow Curve for Segmentation', fontsize=14)
@@ -79,7 +79,7 @@ def run_segmentation_pipeline():
     plt.savefig('outputs/kmeans_elbow_plot.png', dpi=300)
     plt.close()
     
-    # delta rate-of-change bar chart
+    # Plot delta rate-of-change bar chart
     inertia_drops = np.diff(inertia_scores)
     plt.figure(figsize=(8, 4))
     plt.bar(range(2, 15), -inertia_drops, color='blue')
@@ -93,44 +93,44 @@ def run_segmentation_pipeline():
     plt.close()
     
     
-    # execution with optimal number of clusters (k=5)
+    # Execution of segmentation task with optimal number of clusters (k=5)
     selected_k = 5
     print(f'Execution with Selected Cluster Count K={selected_k}')
     k_means_final = KMeans(n_clusters=selected_k, random_state=42, n_init=10, max_iter=300)
 
-    # fit final model with selected k on entire population
+    # Fit final model with selected k on entire population
     k_means_final.fit(X_scaled_km, sample_weight=w_km)
 
-    # assign cluster labels to unscaled dataframe
+    # Assign cluster labels to unscaled dataframe
     df_clean['cluster_id'] = k_means_final.labels_
 
-    # calculate population-weighted averages for each cluster
+    # Calculate population-weighted averages for each cluster
     cluster_profiles = df_clean.groupby('cluster_id')[numeric_features].mean().T
     print('\nWeighted Averages Per Cluster:\n', cluster_profiles.round(2))
     
-    # calculate real-world population size of each group
+    # Calculate real-world population size of each group
     cluster_sizes = df_clean.groupby('cluster_id')['weight'].sum()
     print('\nActual Population Size Per Cluster:')
     print(cluster_sizes.map('{:,.0f}'.format))
     
     marketing_categories = ['education', 'marital stat', 'class of worker', 'major occupation code', 'sex']
     print('\nDominant Categorical Traits Per Cluster')
-    # calculate the most common text lable for each category within each cluster
+    # Calculate the most common text lable for each category within each cluster
     for cat in marketing_categories:
         print(f'\nMost Commmon {cat.title()}:')
         for cluster in range(5):
             cluster_data = df_clean[df_clean['cluster_id'] == cluster]
-            # find category with highest sum of population weights
+            # Find the category with highest sum of population weights
             top_category = cluster_data.groupby(cat)['weight'].sum().idxmax()
             print(f'Cluster {cluster}: {top_category}')
             
-    # custom age brackets to see the generational split
+    # Custom age brackets to see the generational split within clusters
     age_bins = [0, 17, 29, 54, 100]
     age_labels = ['Youth (0-17)', 'Young Adults (18-29)', 'Peak Career (30-54)', 'Seniors (55+)']
 
     df_clean['age_group'] = pd.cut(df_clean['age'], bins=age_bins, labels=age_labels)
 
-    # weighted cross-tabulation table
+    # Weighted cross-tabulation tableS
     generational_mix = pd.crosstab(
         index=df_clean['age_group'],
         columns=df_clean['cluster_id'],

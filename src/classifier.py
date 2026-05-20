@@ -12,23 +12,23 @@ from utils import load_and_clean_data
 def run_classification_pipeline():
     print('EXECUTING CLASSIFICATION PIPELINE')
     
-    # data preprocessing and engineering
+    # Data preprocessing and engineering
     print("Preprocessing Data...")
     df_clean = load_and_clean_data()
     
-    # feature engineering
+    # Feature engineering
     df_clean['total_financial_flow'] = df_clean['capital gains'] - df_clean['capital losses'] + df_clean['dividends from stocks'] 
     df_clean['life_productivity'] = df_clean['age'] * df_clean['weeks worked in year']
     df_clean['employment_stability'] = df_clean['class of worker'].astype(str) + "_" + df_clean['education'].astype(str) # career category
-    # prime earning window where >$50K is statistically concentrated
+    # Prime earning window where >$50K is statistically concentrated
     df_clean['is_peak_earning_age'] = df_clean['age'].between(35, 55).astype(int)
     
-    # separate features and convert target to binary
+    # Separate features and convert target to binary
     y = df_clean['label'].apply(lambda x:1 if '50000+' in str(x) else 0).values 
     weights = df_clean['weight'].values # extract weights
     X = df_clean.drop(['label', 'weight', 'year'], axis=1) # prepare features
     
-    # encode categorical features as integers for xgboost
+    # Encode categorical features as integers for XGBoost
     categorical = X.select_dtypes(include=['object']).columns
     for cat in categorical:
         le = LabelEncoder()
@@ -37,16 +37,16 @@ def run_classification_pipeline():
     os.makedirs('outputs', exist_ok=True)
     
     
-    # generate data visualizations
+    # Generate data visualizations
     print('Generating Data Visualizations...')
-    # temp dataframe that matches encoded feature set + target
+    # Temporary dataframe that matches encoded feature set + target
     X_vis = X.copy()
     X_vis['target'] = y
 
-    # calculate correlation matrix
+    # Calculate correlation matrix
     corr_matrix = X_vis.corr()
     
-    # feature correlation with target
+    # Feature correlation with target
     target_corr = corr_matrix['target'].drop('target').sort_values(ascending=True)
 
     plt.figure(figsize=(10, 12))
@@ -58,7 +58,7 @@ def run_classification_pipeline():
     plt.savefig('outputs/feature_target_correlation.png', dpi=300)
     plt.close()
     
-    # correlation matrix
+    # Plot correlation matrix
     plt.figure(figsize=(22, 18))
 
     sns.heatmap(
@@ -71,7 +71,7 @@ def run_classification_pipeline():
     )
 
     plt.title('Global Correlation Map Matrix', fontsize=18, pad=25)
-    # label rotation and font sixes for readability
+    # Label rotation and font sixes for readability
     plt.xticks(rotation=90, fontsize=11)
     plt.yticks(rotation=0, fontsize=11)
     plt.tight_layout()
@@ -79,25 +79,25 @@ def run_classification_pipeline():
     plt.close()
     
     
-    # split data
+    # Split data for training, validation, and testing
     print('Splitting Data...') 
     # 80% train & validation / 20% test
     X_temp, X_test, y_temp, y_test, w_temp, w_test = train_test_split(
         X, y, weights, test_size=0.20, random_state=42, stratify=y
     )
 
-    # take 20% from 80% split earlier for validation (total: 60% train/20% test/20% val)
+    # Take 20% from 80% split earlier for validation (total: 60% train/20% test/20% val)
     X_train, X_val, y_train, y_val, w_train, w_val = train_test_split(
         X_temp, y_temp, w_temp, test_size=0.25, random_state=42, stratify=y_temp
     )
     
     
-    # grid search for best hyper parameters
+    # Employ grid search for best hyperparameters
     print('Executing Hyperparameter Grid Search Optimization...')
     # scale_pos_weight helps with class imbalance
     ratio = np.sum(y == 0) / np.sum(y == 1)
 
-    # grid search setup
+    # Grid search setup
     weighted_logloss = make_scorer(
         log_loss,
         response_method='predict_proba',
@@ -111,7 +111,7 @@ def run_classification_pipeline():
         'colsample_bytree': [0.7, 0.8]
     }
 
-    # base classifier setup
+    # Base classifier setup
     base_classifier = XGBClassifier(
         scale_pos_weight=ratio,
         subsample=0.8, # prevents rows from forcing overfit
@@ -135,7 +135,7 @@ def run_classification_pipeline():
     print('Optimal Hyperparameters:', grid_search.best_params_)
     
     
-    # grab best settings and initialize deep execution run
+    # Grab best settings and initialize deep execution run
     print('Compiling Final Classifier...')
     best_settings = grid_search.best_params_
     best_settings['scale_pos_weight'] = ratio
@@ -156,13 +156,13 @@ def run_classification_pipeline():
     )
     
     
-    # validation & evaluation
+    # Validation & evaluation
     print('\nExecuting Model Evaluation...')
     y_pred = classifier.predict(X_test)
     print('\nPopulation-Weighted Classification Report')
     print(classification_report(y_test, y_pred, sample_weight=w_test)) # use sample_weight in report to reflect population distribution
 
-    # confusion matrix visualization
+    # Confusion matrix visualization on the test set
     cm = confusion_matrix(y_test, y_pred, sample_weight=w_test)
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='.2f', cmap='Blues',
