@@ -32,6 +32,7 @@ MarketingMlProject/
 ├── DataObservationAndPlanning.ipynb        # Sandbox notebook containing intial data observation and planning
 ├── environment.yml                         # Cross-platform Conda environment profile
 ├── README.md                               # Deployment & execution instructions
+├── report.pdf                              # Detailed project report
 └── requirements.txt                        # Dependencies file
 ```
 
